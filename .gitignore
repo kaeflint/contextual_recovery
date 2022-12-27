@@ -1,0 +1,5 @@
+trained_models_mtl/
+curated_data/
+processed_data/
+*.out
+*.pyc
