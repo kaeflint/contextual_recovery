@@ -28,6 +28,7 @@ class Features:
     attention_mask: List[int]
     labels: Optional[List[int]]
     decoder_attention_mask: Optional[List[int]]
+    section_point: int = -1
 
 
 @dataclass
@@ -63,7 +64,7 @@ def get_training_arguments(args):
         overwrite_output_dir=True,
         adafactor=False,
         load_best_model_at_end=True,
-        output_dir=args.output_dir + "/" + args.run_id + "/",
+        output_dir=args.output_dir + "/" + args.run_id + "/", 
         evaluation_strategy=args.evaluation_strategy,#"epoch",
         save_strategy =args.save_strategy,#'epoch',
         lr_scheduler_type=args.lr_scheduler_type,

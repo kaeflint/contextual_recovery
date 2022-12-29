@@ -5,6 +5,8 @@ from dataclass_csv import DataclassReader
 from torch.utils.data import Dataset
 from src.model_utils import Features
 import glob
+import numpy as np
+from nltk.tokenize import sent_tokenize
 
 boolean = bool
 
@@ -40,11 +42,15 @@ class ContextGenerationDataset(Dataset):
         self,
         tokenizer,
         nb_records: int = 1,
+        section_boundary=(0.35, 0.65),
+        use_random_restrictive: bool = False,
     ) -> None:
         super().__init__()
         self.tokenizer = tokenizer
         self.nb_records = nb_records
         self.is_records_set = False
+        self.use_random_restrictive = use_random_restrictive
+        self.section_boundary = section_boundary
         self.data: List[ContextualGenerationData] = []
 
         # Since we will be mainly training, we will set it to 1, during inference, we will set it to 2
@@ -70,18 +76,37 @@ class ContextGenerationDataset(Dataset):
         self.mode = mode > 1
 
     def procesTexts(self, data: ContextualGenerationData):
-        label_text = data.output
+
         passage = data.input
-        
-        if '[SEP]' not in passage:
-            passage = "[SEP] "+ passage
+        clean_passage = " ".join(passage.replace("[SEP]", "").strip().split()).strip()
+        passage_sentence_tokenized = clean_passage.strip().split()
+        nb_words = len(passage_sentence_tokenized)
+
+        section_point = round(
+            (
+                np.random.uniform(
+                    size=(1,),
+                    low=self.section_boundary[0],
+                    high=self.section_boundary[1],
+                )
+                * nb_words
+            )[0]
+        )
+
+        composed_input = (
+            " ".join(passage_sentence_tokenized[:section_point])
+            + " [SEP] "
+            + " ".join(passage_sentence_tokenized[section_point:])
+        )
+
+        label_text = clean_passage
         # apply the tokenizer to convert the texts to the appropriate input
         if not self.mode:
             label_pack = self.tokenizer(label_text, return_tensors="pt")
             label_seq = label_pack["input_ids"].flatten()
             label_attention = label_pack["attention_mask"].flatten()
 
-        passage_pack = self.tokenizer(passage, return_tensors="pt")
+        passage_pack = self.tokenizer(composed_input, return_tensors="pt")
 
         passage_seq = passage_pack["input_ids"].flatten()
         passage_attention = passage_pack["attention_mask"].flatten()
@@ -92,6 +117,7 @@ class ContextGenerationDataset(Dataset):
                 attention_mask=passage_attention,
                 labels=label_seq,
                 decoder_attention_mask=label_attention,
+                section_point=section_point
             )
         else:
             return Features(
@@ -99,4 +125,5 @@ class ContextGenerationDataset(Dataset):
                 attention_mask=passage_attention,
                 labels=[],
                 decoder_attention_mask=[],
+                section_point=section_point
             )

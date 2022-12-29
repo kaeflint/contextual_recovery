@@ -5,9 +5,10 @@ nohup python trainer.py \
 --lr_scheduler_type cosine \
 --learning_rate 3e-5 \
 --warmup_ratio 0.25 \
---per_device_train_batch_size 16 \
---per_device_eval_batch_size 16 \
+--per_device_train_batch_size 12 \
+--per_device_eval_batch_size 12 \
 --save_total_limit 1 \
 --model_base  facebook/bart-base \
---run_id bart_base_model_section_point \
---output_dir trained_models_mtl/  >> training_logs_bart4.out &
+--run_id bart_base_model_restrictive \
+--use_random_restrictive \
+--output_dir trained_models_mtl/  >> training_logs_bart_restrictive2.out &
