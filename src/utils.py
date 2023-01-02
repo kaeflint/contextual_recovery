@@ -10,9 +10,10 @@ import spacy
 import torch
 from nltk.data import load
 import datetime
+from transformers import AutoTokenizer
 from transformers import (BartTokenizer, BertTokenizer, RobertaTokenizerFast,
                           T5Tokenizer)
-
+from src.config import DATASET_PATH
 from src.model_utils import Features
 
 '''
@@ -68,7 +69,23 @@ def get_args():
         help="Location of where the trained model is saved",
     )
     parser.add_argument(
-        "--run_id", "-run_id", type=str, default="", help="Id for the running"
+        "--data-dir",
+        "-data-dir",
+        default= DATASET_PATH,
+        help="Location of where the dataset is saved",
+    )
+    parser.add_argument(
+        "--sep-token",
+        "-sep-token",
+        type=str, default="[SEP]", help="token to mark the seperation point"
+    )
+    parser.add_argument("--is-not-auto-encoder-data",
+                        "-is-not-auto-encoder-data",
+                        action="store_true")
+    parser.add_argument(
+        "--run_id",
+        "-run_id",
+        type=str, default="", help="Id for the running"
     )
     parser.add_argument("--eval_steps", "-eval_steps", type=int, default=1000)
     parser.add_argument("--learning_rate", "-learning_rate",
@@ -166,7 +183,7 @@ def setuptokenizer(
         tokenizer.bos_token = tokenizer.cls_token
         tokenizer.eos_token = tokenizer.sep_token
     else:
-        return None
+        tokenizer = AutoTokenizer.from_pretrained(model_base)
     tokenizer.add_tokens(additional_tokens)
     tokenizer.add_special_tokens({"additional_special_tokens": special_tokens})
     return tokenizer

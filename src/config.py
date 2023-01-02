@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-DATASET_PATH = 'processed_data/'
+DATASET_PATH = 'processed_data_new/'
 
 
 

@@ -1,5 +1,8 @@
 trained_models_mtl/
 curated_data/
 processed_data/
+processed_data_new/
+summarisation_data/
 *.out
 *.pyc
+events.*

@@ -15,6 +15,10 @@ import torch
 from src.config import DATASET_PATH
 from transformers.trainer_callback import EarlyStoppingCallback
 import pickle as pk
+import pandas as pd
+from src.dataset_processor import ContextualGenerationData
+
+
 
 
 nltk.download("punkt")
@@ -24,23 +28,28 @@ def generate_tokenizer_and_data(args):
 
     # load the dataset
 
-    train_data_packet = load_all_data(DATASET_PATH, mode="train")
-    test_data_packet = load_all_data(DATASET_PATH, mode="dev")
+    train_data_packet = load_all_data(args.data_dir, mode="train")
+    test_data_packet = load_all_data(args.data_dir, mode="dev")
 
     print(f"Training Data size: {len(train_data_packet)}")
-    print(f"Training Data size: {len(test_data_packet)}")
+    print(f"Testing Data size: {len(test_data_packet)}")
 
     model_base = args.model_base
     tokenizer = setuptokenizer(
         model_base=model_base,
         special_tokens=[],
+        additional_tokens=[args.sep_token]
     )
-    tokenizer.add_tokens(["[SEP]"])
+    #tokenizer.add_tokens([])
 
     train_dataset = ContextGenerationDataset(
         tokenizer=tokenizer,
         nb_records=len(train_data_packet),
-        use_random_restrictive=args.use_random_restrictive
+        use_random_restrictive=args.use_random_restrictive,
+        max_len= args.max_seq_len,
+        context_seperator=args.sep_token,
+        is_auto_encoder_data=not args.is_not_auto_encoder_data,
+        use_special_token=True,
     )
     train_dataset.change_data_mode(1)
     train_dataset.set_record(train_data_packet)
@@ -48,7 +57,11 @@ def generate_tokenizer_and_data(args):
     test_dataset = ContextGenerationDataset(
         tokenizer=tokenizer,
         nb_records=len(test_data_packet),
-        use_random_restrictive=args.use_random_restrictive
+        use_random_restrictive=args.use_random_restrictive,
+        max_len= args.max_seq_len,
+        context_seperator=args.sep_token,
+        is_auto_encoder_data=not args.is_not_auto_encoder_data,
+        use_special_token=True,
     )
     test_dataset.change_data_mode(1)
     test_dataset.set_record(test_data_packet)
@@ -85,7 +98,7 @@ if __name__ == "__main__":
     args = get_args()
     train_dataset, test_dataset = generate_tokenizer_and_data(args)
     training_arguments = get_training_arguments(args)
-    context_delimiter_id = train_dataset.tokenizer.get_added_vocab()["[SEP]"]
+    context_delimiter_id = train_dataset.tokenizer.get_vocab()[args.sep_token]
 
     model_builder = model_init(
         vocab_size=len(train_dataset.tokenizer),

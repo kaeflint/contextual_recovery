@@ -20,6 +20,8 @@ from transformers import (
 )
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
+from transformers.models.bart.modeling_bart import BaseModelOutput
+
 
 
 @dataclass
@@ -30,6 +32,19 @@ class Features:
     decoder_attention_mask: Optional[List[int]]
     section_point: int = -1
 
+
+@dataclass
+class EncoderOutputs(BaseModelOutput):
+    last_hidden_state: torch.FloatTensor = None
+    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+    attentions: Optional[Tuple[torch.FloatTensor]] = None
+    attention_mask: torch.LongTensor = None
+
+@dataclass
+class SentenceEmbeddingOutput(BaseModelOutput):
+    token_embeddings: torch.FloatTensor = None
+    sentence_embedding: torch.FloatTensor = None
+    attention_mask: torch.LongTensor = None
 
 @dataclass
 class Transformers:
@@ -46,6 +61,16 @@ class Transformers:
         if "gpt" in self.model_base:
             return self.gpt
 
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = (
+        model_output  # First element of model_output contains all token embeddings
+    )
+    input_mask_expanded = (
+        attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    )
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
+        input_mask_expanded.sum(1), min=1e-9
+    )
 
 def model_init(
     model_base,

@@ -27,16 +27,13 @@ from transformers.models.bart.modeling_bart import (
     _expand_mask,
     shift_tokens_right,
 )
+from src.model_utils import EncoderOutputs
 
+import logging
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class EncoderOutputs(BaseModelOutput):
-    last_hidden_state: torch.FloatTensor = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
-    attention_mask: torch.LongTensor = None
+
 
 
 class BartEncoder(BartPretrainedModel):
