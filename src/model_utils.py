@@ -38,7 +38,8 @@ class EncoderOutputs(BaseModelOutput):
     last_hidden_state: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
-    attention_mask: torch.LongTensor = None
+    cleaned_mask: torch.LongTensor = None
+    seperation_point: torch.LongTensor = None
 
 @dataclass
 class SentenceEmbeddingOutput(BaseModelOutput):

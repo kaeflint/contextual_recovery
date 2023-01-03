@@ -78,7 +78,62 @@ class BartEncoder(BartPretrainedModel):
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
         self.post_init()
+    
+    
+    
+    
+    def _resize_attention_mask(self, input_ids, attention_mask):
+        """
 
+        :param input_ids:
+        :param embeddings:
+        :param attention_mask:
+        :return:
+        """
+        # identify the locations of the context_delimiter in each of the input sequence
+        if type(input_ids) is list:
+            input_ids = torch.LongTensor(
+                input_ids,
+            )
+        delimiter_points = input_ids == self._context_delimiter_id
+
+        delimiter_points_idxs = delimiter_points.nonzero(as_tuple=True)[-1]
+
+        
+        all_attention_masks = []
+        all_input_ids = []
+        max_length = 0
+
+        # For item in input_ids, embeddings, attention_mask, input_ids, select the
+        # portion of the tensor after the delimiter_point_id
+        for delimiter_point_id,  att_mask in zip(
+            delimiter_points_idxs,attention_mask
+        ):
+            
+            if max_length < att_mask.shape[0]:
+                max_length = att_mask.shape[0]
+            
+            all_attention_masks.append(att_mask[delimiter_point_id + 1 :])
+
+        # Reshape all the section of interest for each item in all_input_ids, all_embeddings, all_attention_masks to
+        # the same size
+        batch_attention_masks: List = list()
+
+        for idx, att_mask in enumerate( all_attention_masks):
+            len_diff = max_length - att_mask.shape[0]
+            if max_length > att_mask.shape[0]:
+
+                attn_pads = torch.zeros(
+                    len_diff,
+                ).to(att_mask.device)
+                att_mask = torch.concat([att_mask, attn_pads], -1)
+                
+            batch_attention_masks += [att_mask.view(-1, max_length)]
+        
+        # Create the final tensors with the contexts removed
+        batch_attention_masks = torch.concat(batch_attention_masks, 0)
+        return  batch_attention_masks
+    
     def _strip_context(self, input_ids, embeddings, attention_mask):
         """
 
@@ -137,7 +192,7 @@ class BartEncoder(BartPretrainedModel):
         # Create the final tensors with the contexts removed
         batch_attention_masks = torch.concat(batch_attention_masks, 0)
         batch_embeddings = torch.concat(batch_embeddings, 0)
-        return batch_embeddings, batch_attention_masks
+        return delimiter_points_idxs,batch_embeddings, batch_attention_masks
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -191,6 +246,8 @@ class BartEncoder(BartPretrainedModel):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
+        
+        
         output_attentions = (
             output_attentions
             if output_attentions is not None
@@ -289,11 +346,14 @@ class BartEncoder(BartPretrainedModel):
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
 
-        hidden_states, batch_encoder_attention_masks = self._strip_context(
+        delimiter_points_idxs,hidden_states, batch_encoder_attention_masks = self._strip_context(
             input_ids, hidden_states, attention_mask
         )
+        
+        
 
         if not return_dict:
+            
             return tuple(
                 v
                 for v in [
@@ -301,15 +361,19 @@ class BartEncoder(BartPretrainedModel):
                     encoder_states,
                     all_attentions,
                     batch_encoder_attention_masks,
+                    delimiter_points_idxs,
                 ]
                 if v is not None
             )
-
+            
+        #print(input_ids.shape, hidden_states.shape,batch_encoder_attention_masks.shape, " The data size or shape")
+        
         return EncoderOutputs(
             last_hidden_state=hidden_states,
             hidden_states=encoder_states,
             attentions=all_attentions,
-            attention_mask=batch_encoder_attention_masks,
+            cleaned_mask=batch_encoder_attention_masks,
+            seperation_point=delimiter_points_idxs
         )
 
 
@@ -585,6 +649,8 @@ class RestrictedBartEncoder(BartPretrainedModel):
         hidden_states, batch_encoder_attention_masks = self._strip_context(
             input_ids, hidden_states, attention_mask
         )
+        
+        
 
         if not return_dict:
             return tuple(
@@ -597,12 +663,14 @@ class RestrictedBartEncoder(BartPretrainedModel):
                 ]
                 if v is not None
             )
+        
+        
 
         return EncoderOutputs(
             last_hidden_state=hidden_states,
             hidden_states=encoder_states,
             attentions=all_attentions,
-            attention_mask=batch_encoder_attention_masks,
+            cleaned_mask=batch_encoder_attention_masks,
         )
 
 
@@ -635,6 +703,7 @@ class ContextualisedBartModel(BartPretrainedModel,):
         self.decoder.embed_tokens = self.shared
 
     def get_encoder(self):
+        #print("Calling encoder")
         return self.encoder
 
     def get_decoder(self):
@@ -699,6 +768,7 @@ class ContextualisedBartModel(BartPretrainedModel,):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
+            attention_mask = encoder_outputs.cleaned_mask
 
         # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when return_dict=True
         elif return_dict and not isinstance(encoder_outputs, EncoderOutputs):
@@ -706,16 +776,20 @@ class ContextualisedBartModel(BartPretrainedModel,):
                 last_hidden_state=encoder_outputs[0],
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
-                attention_mask=encoder_outputs[3] if len(encoder_outputs) > 3 else None,
+                cleaned_mask=encoder_outputs[3] if len(encoder_outputs) > 3 else None,
+                seperation_point= encoder_outputs[4] if len(encoder_outputs)>4 else None
             )
+            
+            attention_mask = encoder_outputs.cleaned_mask
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
-
+        
+        #print("Cleaned mask",encoder_outputs.cleaned_mask.shape)
         decoder_outputs = self.decoder(
             input_ids=decoder_input_ids,
             attention_mask=decoder_attention_mask,
             encoder_hidden_states=encoder_outputs[0],
-            encoder_attention_mask=encoder_outputs.attention_mask,
+            encoder_attention_mask=attention_mask,
             head_mask=decoder_head_mask,
             cross_attn_head_mask=cross_attn_head_mask,
             past_key_values=past_key_values,
@@ -872,6 +946,41 @@ class BartForContextualRecovery(BartPretrainedModel):
             encoder_hidden_states=outputs.encoder_hidden_states,
             encoder_attentions=outputs.encoder_attentions,
         )
+    
+    def strip_attention_mask(self,delimiter_points_idxs,attention_mask):
+        all_attention_masks = []
+        all_input_ids = []
+        max_length = 0
+
+        # For item in input_ids, embeddings, attention_mask, input_ids, select the
+        # portion of the tensor after the delimiter_point_id
+        for delimiter_point_id,  att_mask in zip(
+            delimiter_points_idxs,attention_mask
+        ):
+            
+            if max_length < att_mask.shape[0]:
+                max_length = att_mask.shape[0]
+            
+            all_attention_masks.append(att_mask[delimiter_point_id + 1 :])
+
+        # Reshape all the section of interest for each item in all_input_ids, all_embeddings, all_attention_masks to
+        # the same size
+        batch_attention_masks: List = list()
+
+        for idx, att_mask in enumerate( all_attention_masks):
+            len_diff = max_length - att_mask.shape[0]
+            if max_length > att_mask.shape[0]:
+
+                attn_pads = torch.zeros(
+                    len_diff,
+                ).to(att_mask.device)
+                att_mask = torch.concat([att_mask, attn_pads], -1)
+                
+            batch_attention_masks += [att_mask.view(-1, max_length)]
+        
+        # Create the final tensors with the contexts removed
+        batch_attention_masks = torch.concat(batch_attention_masks, 0)
+        return  batch_attention_masks
 
     def prepare_inputs_for_generation(
         self,
@@ -888,7 +997,21 @@ class BartForContextualRecovery(BartPretrainedModel):
         # cut decoder_input_ids if past is used
         if past is not None:
             decoder_input_ids = decoder_input_ids[:, -1:]
-
+        
+        
+        #print(encoder_outputs[0].shape, " Encoder in prepare_inputs")
+        #print(attention_mask.shape, " Everyone")
+        #print(encoder_outputs.cleaned_mask.shape, " New Attentionss")
+        
+        factor = encoder_outputs[0].shape[0]//encoder_outputs.cleaned_mask.shape[0]
+        
+        attention_mask = encoder_outputs.cleaned_mask.repeat_interleave(factor, dim=0)
+        
+        
+        if encoder_outputs[0].shape[:-1] != attention_mask.shape:
+            seperation_point = encoder_outputs.seperation_point
+            #print(seperation_point)
+            attention_mask = self.strip_attention_mask(seperation_point,attention_mask)
         
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
