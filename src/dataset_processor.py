@@ -58,7 +58,7 @@ class ContextGenerationDataset(Dataset):
         tokenizer: AutoTokenizer,
         nb_records: int = 1,
         max_len=700,
-        section_boundary=(0.35, 0.65),
+        section_boundary=(0.25, 0.70),
         use_random_restrictive: bool = False,
         context_seperator: str = "[SEP]",
         use_special_token: bool = True,

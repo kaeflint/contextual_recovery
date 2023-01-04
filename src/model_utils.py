@@ -23,7 +23,6 @@ from torch.utils.data import DataLoader, Dataset
 from transformers.models.bart.modeling_bart import BaseModelOutput
 
 
-
 @dataclass
 class Features:
     input_ids: List[int]
@@ -41,11 +40,13 @@ class EncoderOutputs(BaseModelOutput):
     cleaned_mask: torch.LongTensor = None
     seperation_point: torch.LongTensor = None
 
+
 @dataclass
 class SentenceEmbeddingOutput(BaseModelOutput):
     token_embeddings: torch.FloatTensor = None
     sentence_embedding: torch.FloatTensor = None
     attention_mask: torch.LongTensor = None
+
 
 @dataclass
 class Transformers:
@@ -62,6 +63,7 @@ class Transformers:
         if "gpt" in self.model_base:
             return self.gpt
 
+
 def mean_pooling(model_output, attention_mask):
     token_embeddings = (
         model_output  # First element of model_output contains all token embeddings
@@ -72,6 +74,7 @@ def mean_pooling(model_output, attention_mask):
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
         input_mask_expanded.sum(1), min=1e-9
     )
+
 
 def model_init(
     model_base,
@@ -85,27 +88,40 @@ def model_init(
     return generator.to(device)  # type: ignore
 
 
-def get_training_arguments(args):
+def get_training_arguments(
+    output_dir,
+    num_train_epochs,
+    learning_rate,
+    lr_scheduler_type,
+    warmup_ratio,
+    weight_decay,
+    save_total_limit,
+    save_strategy,
+    evaluation_strategy,
+    eval_steps,
+    run_id,
+    per_device_train_batch_size,
+    verbose=False,
+    **unused_args,
+):
     return TrainingArguments(
         overwrite_output_dir=True,
         adafactor=False,
         load_best_model_at_end=True,
-        output_dir=args.output_dir + "/" + args.run_id + "/", 
-        evaluation_strategy=args.evaluation_strategy,#"epoch",
-        save_strategy =args.save_strategy,#'epoch',
-        lr_scheduler_type=args.lr_scheduler_type,
-        learning_rate=args.learning_rate,
-        
-        save_total_limit=args.save_total_limit,
-        weight_decay=args.weight_decay,
-        warmup_ratio=args.warmup_ratio,
-        num_train_epochs=args.num_train_epochs,
-        per_device_train_batch_size=args.per_device_train_batch_size,
-        per_device_eval_batch_size=args.per_device_train_batch_size,
-        disable_tqdm=not args.verbose,
-        eval_steps=args.eval_steps,
-        save_steps=args.eval_steps,
-
+        output_dir=output_dir + "/" + run_id + "/",
+        evaluation_strategy=evaluation_strategy,  # "epoch",
+        save_strategy=save_strategy,  #'epoch',
+        lr_scheduler_type=lr_scheduler_type,
+        learning_rate=learning_rate,
+        save_total_limit=save_total_limit,
+        weight_decay=weight_decay,
+        warmup_ratio=warmup_ratio,
+        num_train_epochs=num_train_epochs,
+        per_device_train_batch_size=per_device_train_batch_size,
+        per_device_eval_batch_size=per_device_train_batch_size,
+        disable_tqdm=not verbose,
+        eval_steps=eval_steps,
+        save_steps=eval_steps,
     )
 
 

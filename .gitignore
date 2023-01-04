@@ -6,3 +6,4 @@ summarisation_data/
 *.out
 *.pyc
 events.*
+trained_models_sum/

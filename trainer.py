@@ -19,36 +19,40 @@ import pandas as pd
 from src.dataset_processor import ContextualGenerationData
 
 
-
-
 nltk.download("punkt")
 
 
-def generate_tokenizer_and_data(args):
+def generate_tokenizer_and_data(
+    data_dir,
+    model_base,
+    sep_token,
+    max_seq_len,
+    is_not_auto_encoder_data=False,
+    use_random_restrictive=False,
+    **unused_args,
+):
 
     # load the dataset
 
-    train_data_packet = load_all_data(args.data_dir, mode="train")
-    test_data_packet = load_all_data(args.data_dir, mode="dev")
+    train_data_packet = load_all_data(data_dir, mode="train")
+    test_data_packet = load_all_data(data_dir, mode="dev")
 
     print(f"Training Data size: {len(train_data_packet)}")
     print(f"Testing Data size: {len(test_data_packet)}")
 
-    model_base = args.model_base
+    model_base = model_base
     tokenizer = setuptokenizer(
-        model_base=model_base,
-        special_tokens=[],
-        additional_tokens=[args.sep_token]
+        model_base=model_base, special_tokens=[], additional_tokens=[sep_token]
     )
-    #tokenizer.add_tokens([])
+    # tokenizer.add_tokens([])
 
     train_dataset = ContextGenerationDataset(
         tokenizer=tokenizer,
         nb_records=len(train_data_packet),
-        use_random_restrictive=args.use_random_restrictive,
-        max_len= args.max_seq_len,
-        context_seperator=args.sep_token,
-        is_auto_encoder_data=not args.is_not_auto_encoder_data,
+        use_random_restrictive=use_random_restrictive,
+        max_len=max_seq_len,
+        context_seperator=sep_token,
+        is_auto_encoder_data=not is_not_auto_encoder_data,
         use_special_token=True,
     )
     train_dataset.change_data_mode(1)
@@ -57,10 +61,10 @@ def generate_tokenizer_and_data(args):
     test_dataset = ContextGenerationDataset(
         tokenizer=tokenizer,
         nb_records=len(test_data_packet),
-        use_random_restrictive=args.use_random_restrictive,
-        max_len= args.max_seq_len,
-        context_seperator=args.sep_token,
-        is_auto_encoder_data=not args.is_not_auto_encoder_data,
+        use_random_restrictive=use_random_restrictive,
+        max_len=max_seq_len,
+        context_seperator=sep_token,
+        is_auto_encoder_data=not is_not_auto_encoder_data,
         use_special_token=True,
     )
     test_dataset.change_data_mode(1)
@@ -95,16 +99,18 @@ def model_init(
 
 
 if __name__ == "__main__":
-    args = get_args()
-    train_dataset, test_dataset = generate_tokenizer_and_data(args)
-    training_arguments = get_training_arguments(args)
-    context_delimiter_id = train_dataset.tokenizer.get_vocab()[args.sep_token]
+    arguments = get_args()
+    configs = vars(arguments)
+    train_dataset, test_dataset = generate_tokenizer_and_data(**configs)
+
+    training_arguments = get_training_arguments(**configs)
+    context_delimiter_id = train_dataset.tokenizer.get_vocab()[arguments.sep_token]
 
     model_builder = model_init(
         vocab_size=len(train_dataset.tokenizer),
         context_delimiter_id=context_delimiter_id,
-        model_base=args.model_base,
-        use_random_restriction=args.use_random_restrictive,
+        model_base=arguments.model_base,
+        use_random_restriction=arguments.use_random_restrictive,
     )
 
     custom_trainer = CustomTrainer(
@@ -113,10 +119,14 @@ if __name__ == "__main__":
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         data_collator=SmartCollator(
-            pad_token_id=train_dataset.tokenizer.pad_token_id, max_len=args.max_seq_len
+            pad_token_id=train_dataset.tokenizer.pad_token_id,
+            max_len=arguments.max_seq_len,
         ),  # type: ignore
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=6)],
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=20)],
     )
 
     custom_trainer.train()
-    pk.dump(args, open(args.output_dir + "/" + args.run_id + "/train_args.ap", "wb"))
+    pk.dump(
+        arguments,
+        open(arguments.output_dir + "/" + arguments.run_id + "/train_args.ap", "wb"),
+    )
