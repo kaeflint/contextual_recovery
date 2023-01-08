@@ -2,15 +2,16 @@ nohup python trainer.py \
 --max_seq_len 720 \
 --sep-token [SEP] \
 --data-dir summarisation_data/ \
---num_train_epochs 5 \
+--num_train_epochs 10 \
 --eval_steps 1000 \
 --lr_scheduler_type cosine \
---learning_rate 3e-5 \
---warmup_ratio 0.30 \
---per_device_train_batch_size 4 \
---per_device_eval_batch_size 4 \
+--learning_rate 4e-5 \
+--warmup_ratio 0.10 \
+--per_device_train_batch_size 12 \
+--per_device_eval_batch_size 12 \
 --save_total_limit 1 \
---model_base  facebook/bart-large \
---run_id bart_large_model_full_e10 \
+--model_base  facebook/bart-base \
+--run_id bart_base_model_full_e10a4 \
 --is-not-auto-encoder-data \
---output_dir trained_models_sum/  >> training_logs_bart_large_xsum.out &
+--gradient_accumulation_steps 4 \
+--output_dir trained_models_sum/  >> training_logs_bart_base_xsum.out &

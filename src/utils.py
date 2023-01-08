@@ -125,6 +125,13 @@ def get_args():
         type=int,
         default=16,
     )
+    #gradient_accumulation_steps
+    
+    parser.add_argument("--gradient_accumulation_steps",
+                        "-gradient_accumulation_steps",
+                        type=int,
+                        default=1,
+                        )
     parser.add_argument("--verbose", "-verbose", action="store_true")
     parser.add_argument("--use_random_restrictive", "-use_random_restrictive", action="store_true")
     # warmup_ratio save_total_limit per_device_eval_batch_size

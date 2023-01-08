@@ -102,9 +102,11 @@ def get_training_arguments(
     run_id,
     per_device_train_batch_size,
     verbose=False,
+    gradient_accumulation_steps = 1,
     **unused_args,
 ):
     return TrainingArguments(
+        gradient_accumulation_steps= gradient_accumulation_steps,
         overwrite_output_dir=True,
         adafactor=False,
         load_best_model_at_end=True,
