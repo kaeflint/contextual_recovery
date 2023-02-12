@@ -28,6 +28,7 @@ def read_csv(file_name):
 class ContextualGenerationData:
     input: str
     output: str
+    boundary: int = -1
 
 
 def load_dataset(data_path: str):
@@ -78,9 +79,9 @@ class ContextGenerationDataset(Dataset):
         self._is_auto_encoder_data = is_auto_encoder_data
 
         if self._is_auto_encoder_data:
-            print("The model will be trained as an auto-encoder")
+            logger.info("The model will be trained as an auto-encoder")
         else:
-            print("The model will be trained as a non auto-encoder")
+            logger.info("The model will be trained as a non auto-encoder")
 
         # Since we will be mainly training, we will set it to 1, during inference, we will set it to 2
         self.change_data_mode(1)
@@ -110,17 +111,19 @@ class ContextGenerationDataset(Dataset):
         clean_passage = " ".join(passage.replace("[SEP]", "").strip().split()).strip()
         passage_sentence_tokenized = clean_passage.strip().split()
         nb_words = len(passage_sentence_tokenized)
-
-        section_point = round(
-            (
-                np.random.uniform(
-                    size=(1,),
-                    low=self.section_boundary[0],
-                    high=self.section_boundary[1],
-                )
-                * nb_words
-            )[0]
-        )
+        
+        section_point = data.boundary
+        if section_point<0:
+            section_point = round(
+                (
+                    np.random.uniform(
+                        size=(1,),
+                        low=self.section_boundary[0],
+                        high=self.section_boundary[1],
+                    )
+                    * nb_words
+                )[0]
+            )
 
         composed_input = (
             " ".join(passage_sentence_tokenized[:section_point])

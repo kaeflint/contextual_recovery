@@ -1,6 +1,7 @@
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["WANDB_DISABLED"] = "true"
 from functools import partial
 import nltk
 from src.contextual_bart import BartForContextualRecovery
@@ -54,6 +55,7 @@ def generate_tokenizer_and_data(
         context_seperator=sep_token,
         is_auto_encoder_data=not is_not_auto_encoder_data,
         use_special_token=True,
+        section_boundary=(0.3, 0.60)
     )
     train_dataset.change_data_mode(1)
     train_dataset.set_record(train_data_packet)
@@ -66,6 +68,8 @@ def generate_tokenizer_and_data(
         context_seperator=sep_token,
         is_auto_encoder_data=not is_not_auto_encoder_data,
         use_special_token=True,
+        
+        section_boundary=(0.3, 0.60)
     )
     test_dataset.change_data_mode(1)
     test_dataset.set_record(test_data_packet)
@@ -78,7 +82,7 @@ def model_init(
     context_delimiter_id,
     model_base="facebook/bart-base",
     use_random_restriction=False,
-    section_prob=(0.45, 0.65),
+    section_prob=(0.3, 0.60),#(0.45, 0.65),
     device=torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"),
 ):
     def build_model():
