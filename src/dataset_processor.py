@@ -2,7 +2,7 @@ import glob
 import logging
 import random
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -29,6 +29,8 @@ class ContextualGenerationData:
     input: str
     output: str
     boundary: int = -1
+    focus_txt: str= ""
+    boundary_proportion: Tuple[float, int]=  (0.5,100) # Default, half of the tokens upto 100 tokens is passed to the decoder
 
 
 def load_dataset(data_path: str):
