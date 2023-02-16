@@ -206,6 +206,7 @@ def pad_seq(
     return out
 
 
+
 @dataclass
 class SmartCollator:
     pad_token_id: int
@@ -213,6 +214,7 @@ class SmartCollator:
     is_gpt: boolean = False
     max_len: int = 512
     is_inference: boolean = False
+    boundary = (0,512)
 
     def __call__(self, batch: List[Features]) -> Dict[str, torch.Tensor]:
         batch_inputs: List = list()
@@ -224,7 +226,7 @@ class SmartCollator:
 
         max_size_output = min(
             [max([len(ex.labels) for ex in batch]), self.max_len])  # type: ignore
-
+        boundaries= []
         for item in batch:
             batch_inputs += [pad_seq(item.input_ids,
                                      max_size, self.pad_token_id)]
@@ -238,22 +240,20 @@ class SmartCollator:
             if not self.is_inference:
                 labels += [pad_seq(item.labels, max_size_output,
                                    self.label_pad_token_id)]
-        if not self.is_gpt:
-            if not self.is_inference:
+            boundaries.append(item.boundary)
+        if not self.is_inference:
                 return dict(
                     input_ids=torch.concat(batch_inputs, 0),
                     attention_mask=torch.concat(batch_attention_masks, 0),
                     labels=torch.concat(labels, 0),
                     decoder_attention_mask=torch.concat(
-                        decoder_attention_mask, 0),
+                    decoder_attention_mask, 0),
+                    boundaries = torch.LongTensor(boundaries)
                 )
-            else:
+        else:
                 return dict(
                     input_ids=torch.concat(batch_inputs, 0),
-                    attention_mask=torch.concat(batch_attention_masks, 0),)
-        else:
-            return dict(
-                input_ids=torch.concat(batch_inputs, 0),
-                attention_mask=torch.concat(batch_attention_masks, 0),
-                labels=torch.concat(labels, 0),
-            )
+                    attention_mask=torch.concat(batch_attention_masks, 0),
+                    boundaries = torch.LongTensor(boundaries)
+                    )
+        

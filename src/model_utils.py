@@ -30,6 +30,11 @@ class Features:
     labels: Optional[List[int]]
     decoder_attention_mask: Optional[List[int]]
     section_point: int = -1
+    boundary: Optional[Tuple[int,int]] = (0,200)
+    
+
+
+    
 
 
 @dataclass
@@ -39,6 +44,7 @@ class EncoderOutputs(BaseModelOutput):
     attentions: Optional[Tuple[torch.FloatTensor]] = None
     cleaned_mask: torch.LongTensor = None
     seperation_point: torch.LongTensor = None
+    boundaries: torch.LongTensor = None
 
 
 @dataclass
@@ -178,6 +184,7 @@ class CustomTrainer(Trainer):
             b_input_ids,
             attention_mask=b_input_mask,
             decoder_attention_mask=decoder_attention_mask,
+            boundaries = batch.get("boundaries",None),
             labels=b_labels,
         )
         loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]

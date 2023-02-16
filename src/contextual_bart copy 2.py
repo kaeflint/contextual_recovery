@@ -990,7 +990,8 @@ class BartEncoderBoundary(BartPretrainedModel):
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
 
-        hidden_states,batch_encoder_attention_masks = self._strip_context(
+        hidden_states,
+        batch_encoder_attention_masks = self._strip_context(
             input_ids, hidden_states, attention_mask,boundaries
         )
         
@@ -1120,7 +1121,6 @@ class ContextualisedBartModel(BartPretrainedModel,):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
-            
             attention_mask = encoder_outputs.cleaned_mask
 
         # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when return_dict=True
@@ -1415,9 +1415,10 @@ class BartForContextualRecovery(BartPretrainedModel):
             seperation_point = encoder_outputs.seperation_point
             if isinstance(self.model.encoder,BartEncoderBoundary):
                 attention_mask = self.strip_attention_mask_boundary(encoder_outputs.boundaries,attention_mask)
+                attention_mask = self.strip_attention_mask_boundary(encoder_outputs.boundaries,attention_mask)
             else:
                 attention_mask = self.strip_attention_mask(seperation_point,attention_mask)
-            
+            #print(seperation_point)
             
         
         return {

@@ -17,7 +17,7 @@ from src.config import DATASET_PATH
 from transformers.trainer_callback import EarlyStoppingCallback
 import pickle as pk
 import pandas as pd
-from src.dataset_processor import ContextualGenerationData
+from src.dataset_processor import ContextualGenerationData,ContextGenerationDatasetBoundary
 
 
 nltk.download("punkt")
@@ -35,8 +35,8 @@ def generate_tokenizer_and_data(
 
     # load the dataset
 
-    train_data_packet = load_all_data(data_dir, mode="train")
-    test_data_packet = load_all_data(data_dir, mode="dev")
+    train_data_packet = load_all_data(data_dir, mode="train",new_format_data=use_random_restrictive)
+    test_data_packet = load_all_data(data_dir, mode="dev",new_format_data=use_random_restrictive)
 
     print(f"Training Data size: {len(train_data_packet)}")
     print(f"Testing Data size: {len(test_data_packet)}")
@@ -46,8 +46,11 @@ def generate_tokenizer_and_data(
         model_base=model_base, special_tokens=[], additional_tokens=[sep_token]
     )
     # tokenizer.add_tokens([])
-
-    train_dataset = ContextGenerationDataset(
+    
+    context_data_class = ContextGenerationDataset
+    if use_random_restrictive:
+        context_data_class = ContextGenerationDatasetBoundary
+    train_dataset = context_data_class(
         tokenizer=tokenizer,
         nb_records=len(train_data_packet),
         use_random_restrictive=use_random_restrictive,
@@ -60,7 +63,7 @@ def generate_tokenizer_and_data(
     train_dataset.change_data_mode(1)
     train_dataset.set_record(train_data_packet)
 
-    test_dataset = ContextGenerationDataset(
+    test_dataset = context_data_class(
         tokenizer=tokenizer,
         nb_records=len(test_data_packet),
         use_random_restrictive=use_random_restrictive,
